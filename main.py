@@ -1,19 +1,21 @@
 from fastapi import FastAPI
-from shemas import Book
+from starlette.responses import Response
+from starlette.requests import Request
+from core.db import SessionLocal
+from routers import routers
 
 app = FastAPI()
 
 
-@app.get('/')
-def home():
-    return {'key': 'hello'}
+@app.middleware('http')
+async def db_session_midleware(request: Request, call_next):
+    response = Response('Internal server error', status_code=500)
+    try:
+        request.state.db = SessionLocal()
+        response = await call_next(request)
+    finally:
+        request.state.db.close()
+    return response
 
 
-@app.get('/{pk}')
-def get_pk(pk: int):
-    return {'key': pk}
-
-
-@app.post('/post', response_model=Book)
-def create_book(book: Book):
-    return book
+app.include_router(routers)
